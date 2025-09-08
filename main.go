@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -31,11 +30,11 @@ var glClient *http.Client
 
 func loadConfig() Config {
 	return Config{
-		GitHubUser:      getEnv("GITHUB_USER", "your-github-username"),
-		GitHubToken:     getEnv("GITHUB_TOKEN", "your-github-token"),
-		GitLabUser:      getEnv("GITLAB_USER", "your-gitlab-username"),
+		GitHubUser:      mustGetEnv("GITHUB_USER"),
+		GitHubToken:     mustGetEnv("GITHUB_TOKEN"),
+		GitLabUser:      mustGetEnv("GITLAB_USER"),
 		GitLabGroup:     getEnv("GITLAB_GROUP", ""),
-		GitLabToken:     getEnv("GITLAB_TOKEN", "your-gitlab-token"),
+		GitLabToken:     mustGetEnv("GITLAB_TOKEN"),
 		RepoVisibility:  getEnv("REPO_VISIBILITY", "auto"),
 		PerPage:         100,
 		BackupDir:       "./repos-backup",
@@ -51,6 +50,14 @@ func getEnv(key, defaultVal string) string {
 	return defaultVal
 }
 
+func mustGetEnv(key string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	log.Fatalf("Environment variable %s is not set.", key)
+	return ""
+}
+
 func initClients() {
 	ghClient = &http.Client{}
 	glClient = &http.Client{}
@@ -64,7 +71,7 @@ func setupLogger() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.SetOutput(io.MultiWriter(os.Stdout, file))
+	log.SetOutput(file)
 	log.SetFlags(log.LstdFlags)
 }
 
@@ -98,15 +105,6 @@ func main() {
 	log.Printf("####################### logger Started ############################")
 	log.Printf("#################### Timestamp: %s ######################", time.Now().Format("2006-01-02 15:04:05"))
 
-	if config.GitHubToken == "your-github-token" {
-		log.Fatal("GITHUB_TOKEN environment variable is not set.")
-	}
-	if config.GitLabToken == "your-gitlab-token" {
-		log.Fatal("GITLAB_TOKEN environment variable is not set.")
-	}
-	if config.GitLabUser == "your-gitlab-username" {
-		log.Fatal("GITLAB_USER environment variable is not set.")
-	}
 
 	repos, err := getGitHubRepos()
 	if err != nil {
@@ -159,5 +157,5 @@ func main() {
 		log.Printf("Repos done: %d/%d", reposDone, len(repos))
 	}
 	log.Printf("✅ All Done :), all repositories has been synced, please check the logs for details.")
-	fmt.Println("✅ All Done :), Now you can enjoy hehe, please check the logs for details.")
+	log.Printf("✅ All Done :), Now you can enjoy hehe, please check the logs for details.")
 }
