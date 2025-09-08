@@ -1,0 +1,48 @@
+on:
+  workflow_dispatch:
+    #  https://github.blog/changelog/2021-11-10-github-actions-input-types-for-manual-workflows/
+    inputs:
+      GITHUB_USER:
+        description: "GITHUB_USER"
+        required: true
+        type: string
+      GITHUB_TOKEN:
+        description: "GITHUB_TOKEN"
+        required: true
+        type: string
+      GITLAB_USER:
+        description: "GITLAB_USER"
+        required: true
+        type: string
+      GITLAB_TOKEN:
+        description: "GITLAB_TOKEN"
+        required: true
+        type: string
+      GITLAB_GROUP:
+        description: "GITLAB_GROUP (optional)"
+        required: false
+        type: string
+      REPO_VISIBILITY:
+        description: "REPO_VISIBILITY (optional)"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - public
+          - private
+
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          go run main.go
+        env:
+          GITHUB_USER: ${{ inputs.GITHUB_USER }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          GITLAB_USER: ${{ inputs.GITLAB_USER }}
+          GITLAB_TOKEN: ${{ inputs.GITLAB_TOKEN }}
+          GITLAB_GROUP: ${{ inputs.GITLAB_GROUP }}
+          REPO_VISIBILITY: ${{ inputs.REPO_VISIBILITY }}
