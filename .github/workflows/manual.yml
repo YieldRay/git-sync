@@ -37,8 +37,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
       - run: |
-          go run main.go
+          go run .
         env:
           GITHUB_USER: ${{ inputs.GITHUB_USER }}
           GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
