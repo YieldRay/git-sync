@@ -17,6 +17,7 @@ type Config struct {
 	GitLabUser      string
 	GitLabGroup     string
 	GitLabToken     string
+	CodebergToken   string
 	RepoVisibility  string
 	PerPage         int
 	BackupDir       string
@@ -104,7 +105,6 @@ func main() {
 	initClients()
 	log.Printf("####################### logger Started ############################")
 	log.Printf("#################### Timestamp: %s ######################", time.Now().Format("2006-01-02 15:04:05"))
-
 
 	repos, err := getGitHubRepos()
 	if err != nil {
