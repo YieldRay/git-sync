@@ -1,3 +1,4 @@
+// https://github.com/settings/tokens
 package main
 
 import (
@@ -52,6 +53,7 @@ func handleGitHubResponse(resp *http.Response, target interface{}) error {
 	}
 }
 
+// https://docs.github.com/en/rest/repos/repos#list-repositories-for-the-authenticated-user
 func getGitHubRepos() ([]GitHubRepo, error) {
 	var repos []GitHubRepo
 	page := 1

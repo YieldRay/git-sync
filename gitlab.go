@@ -1,3 +1,4 @@
+// https://gitlab.com/-/user_settings/personal_access_tokens
 package main
 
 import (
@@ -52,6 +53,7 @@ func handleGitLabResponse(resp *http.Response, target interface{}) (interface{},
 	}
 }
 
+// https://docs.gitlab.com/api/projects/
 func getGitLabProject(repoName, userName string, groupID *int) (*GitLabProject, error) {
 	var projPath string
 	if groupID != nil {
@@ -75,6 +77,7 @@ func getGitLabProject(repoName, userName string, groupID *int) (*GitLabProject, 
 	return result.(*GitLabProject), nil
 }
 
+// https://docs.gitlab.com/api/groups/
 func getGitLabGroupID() (*int, error) {
 	if config.GitLabGroup == "" {
 		return nil, nil
@@ -155,6 +158,7 @@ func checkAndValidateGitLabRepos(groupID *int, repoName, userName, repoVisibilit
 	return nil
 }
 
+// https://forum.gitlab.com/t/how-to-git-clone-via-https-with-personal-access-token-in-private-project/43418
 func syncRepos(groupID *int, userName, gitlabToken, repoName, localPath string) error {
 	targetNamespace := config.GitLabGroup
 	if groupID == nil {
