@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ type Config struct {
 	GitLabUser      string
 	GitLabGroup     string
 	GitLabToken     string
+	CodebergUser    string
 	CodebergToken   string
 	RepoVisibility  string
 	PerPage         int
@@ -29,19 +31,26 @@ var config Config
 var ghClient *http.Client
 var glClient *http.Client
 
-func loadConfig() Config {
-	return Config{
+func loadConfig(target string) Config {
+	cfg := Config{
 		GitHubUser:      mustGetEnv("GITHUB_USER"),
 		GitHubToken:     mustGetEnv("GITHUB_TOKEN"),
-		GitLabUser:      mustGetEnv("GITLAB_USER"),
-		GitLabGroup:     getEnv("GITLAB_GROUP", ""),
-		GitLabToken:     mustGetEnv("GITLAB_TOKEN"),
 		RepoVisibility:  getEnv("REPO_VISIBILITY", "auto"),
 		PerPage:         100,
 		BackupDir:       "./repos-backup",
 		LogsFolder:      "./log",
 		SleepBetweenAPI: 500 * time.Millisecond,
 	}
+	switch target {
+	case "gitlab":
+		cfg.GitLabUser = mustGetEnv("GITLAB_USER")
+		cfg.GitLabToken = mustGetEnv("GITLAB_TOKEN")
+		cfg.GitLabGroup = getEnv("GITLAB_GROUP", "")
+	case "codeberg":
+		cfg.CodebergUser = mustGetEnv("CODEBERG_USER")
+		cfg.CodebergToken = mustGetEnv("CODEBERG_TOKEN")
+	}
+	return cfg
 }
 
 func getEnv(key, defaultVal string) string {
@@ -100,7 +109,27 @@ func runCmd(name string, args ...string) error {
 }
 
 func main() {
-	config = loadConfig()
+	target := flag.String("target", "gitlab", "sync target: gitlab or codeberg")
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage: %s -target {gitlab|codeberg}\n\n", os.Args[0])
+		fmt.Fprintln(os.Stderr, "Targets and required environment:")
+		fmt.Fprintln(os.Stderr, "  gitlab   -> requires GITLAB_USER, GITLAB_TOKEN; optional GITLAB_GROUP")
+		fmt.Fprintln(os.Stderr, "  codeberg -> requires CODEBERG_USER, CODEBERG_TOKEN")
+		fmt.Fprintln(os.Stderr, "Always required:")
+		fmt.Fprintln(os.Stderr, "  GITHUB_USER, GITHUB_TOKEN")
+		fmt.Fprintln(os.Stderr, "Optional:")
+		fmt.Fprintln(os.Stderr, "  REPO_VISIBILITY (auto|public|private), default=auto")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
+	flag.Parse()
+	if *target != "gitlab" && *target != "codeberg" {
+		fmt.Fprintf(os.Stderr, "Invalid -target: %q\n\n", *target)
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	config = loadConfig(*target)
 	setupLogger()
 	initClients()
 	log.Printf("####################### logger Started ############################")
@@ -110,9 +139,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	gitlabGroupID, err := getGitLabGroupID()
-	if err != nil {
-		log.Fatal(err)
+	var gitlabGroupID *int
+	if *target == "gitlab" {
+		gitlabGroupID, err = getGitLabGroupID()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if len(repos) == 0 {
 		log.Printf("No repos found; exiting.")
@@ -142,15 +174,33 @@ func main() {
 			log.Printf("Failed to mirror %s: %v", repoName, err)
 			continue
 		}
-		err = checkAndValidateGitLabRepos(gitlabGroupID, repoName, config.GitLabUser, repoVisibility)
-		if err != nil {
-			log.Printf("Failed to validate GitLab repo %s: %v", repoName, err)
-			continue
-		}
-		err = syncRepos(gitlabGroupID, config.GitLabUser, config.GitLabToken, repoName, localPath)
-		if err != nil {
-			log.Printf("Failed to sync %s: %v", repoName, err)
-			continue
+		switch *target {
+		case "gitlab":
+			err = checkAndValidateGitLabRepos(gitlabGroupID, repoName, config.GitLabUser, repoVisibility)
+			if err != nil {
+				log.Printf("Failed to validate GitLab repo %s: %v", repoName, err)
+				continue
+			}
+			err = syncRepos(gitlabGroupID, config.GitLabUser, config.GitLabToken, repoName, localPath)
+			if err != nil {
+				log.Printf("Failed to sync %s: %v", repoName, err)
+				continue
+			}
+		case "codeberg":
+			if config.CodebergUser == "" || config.CodebergToken == "" {
+				log.Fatalf("CODEBERG_USER and CODEBERG_TOKEN must be set when target=codeberg")
+			}
+			private := repoVisibility == "private"
+			if err := checkAndValidateCodebergRepo(config.CodebergUser, repoName, private); err != nil {
+				log.Printf("Failed to validate Codeberg repo %s: %v", repoName, err)
+				continue
+			}
+			if err := syncToCodeberg(config.CodebergUser, config.CodebergToken, repoName, localPath); err != nil {
+				log.Printf("Failed to sync to Codeberg %s: %v", repoName, err)
+				continue
+			}
+		default:
+			log.Fatalf("Unknown target: %s (expected gitlab or codeberg)", *target)
 		}
 		log.Printf("✅ Synced %s", repoName)
 		reposDone++
