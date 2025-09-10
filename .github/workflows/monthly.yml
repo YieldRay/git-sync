@@ -10,10 +10,22 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
       - run: |
-          go run .
+          # Default TARGET to gitlab if not provided
+          TARGET="${TARGET:-gitlab}"
+          echo "Running scheduled sync with target=$TARGET"
+          go run . -target "$TARGET"
         env:
           GITHUB_USER: ${{ secrets.GITHUB_USER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLAB_USER: ${{ secrets.GITLAB_USER }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
           GITLAB_GROUP: ${{ secrets.GITLAB_GROUP }}
+          CODEBERG_USER: ${{ secrets.CODEBERG_USER }}
+          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+          BITBUCKET_USER: ${{ secrets.BITBUCKET_USER }}
+          BITBUCKET_APP_PASSWORD: ${{ secrets.BITBUCKET_APP_PASSWORD }}
+          BITBUCKET_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
+          # Optional visibility override: auto|public|private
+          REPO_VISIBILITY: ${{ secrets.REPO_VISIBILITY }}
+          # Optional target override: gitlab|codeberg|bitbucket
+          TARGET: ${{ secrets.TARGET }}

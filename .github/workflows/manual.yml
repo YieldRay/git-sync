@@ -2,6 +2,15 @@ on:
   workflow_dispatch:
     #  https://github.blog/changelog/2021-11-10-github-actions-input-types-for-manual-workflows/
     inputs:
+      TARGET:
+        description: "sync target: gitlab | codeberg | bitbucket"
+        required: true
+        default: gitlab
+        type: choice
+        options:
+          - gitlab
+          - codeberg
+          - bitbucket
       GITHUB_USER:
         description: "GITHUB_USER"
         required: true
@@ -22,6 +31,26 @@ on:
         description: "GITLAB_GROUP (optional)"
         required: false
         type: string
+      CODEBERG_USER:
+        description: "CODEBERG_USER (required when TARGET=codeberg)"
+        required: false
+        type: string
+      CODEBERG_TOKEN:
+        description: "CODEBERG_TOKEN (required when TARGET=codeberg)"
+        required: false
+        type: string
+      BITBUCKET_USER:
+        description: "BITBUCKET_USER (required when TARGET=bitbucket)"
+        required: false
+        type: string
+      BITBUCKET_APP_PASSWORD:
+        description: "BITBUCKET_APP_PASSWORD (required when TARGET=bitbucket)"
+        required: false
+        type: string
+      BITBUCKET_WORKSPACE:
+        description: "BITBUCKET_WORKSPACE (optional, defaults to user)"
+        required: false
+        type: string
       REPO_VISIBILITY:
         description: "REPO_VISIBILITY (optional)"
         required: false
@@ -39,11 +68,16 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
       - run: |
-          go run .
+          go run . -target "${{ inputs.TARGET }}"
         env:
           GITHUB_USER: ${{ inputs.GITHUB_USER }}
           GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
           GITLAB_USER: ${{ inputs.GITLAB_USER }}
           GITLAB_TOKEN: ${{ inputs.GITLAB_TOKEN }}
           GITLAB_GROUP: ${{ inputs.GITLAB_GROUP }}
+          CODEBERG_USER: ${{ inputs.CODEBERG_USER }}
+          CODEBERG_TOKEN: ${{ inputs.CODEBERG_TOKEN }}
+          BITBUCKET_USER: ${{ inputs.BITBUCKET_USER }}
+          BITBUCKET_APP_PASSWORD: ${{ inputs.BITBUCKET_APP_PASSWORD }}
+          BITBUCKET_WORKSPACE: ${{ inputs.BITBUCKET_WORKSPACE }}
           REPO_VISIBILITY: ${{ inputs.REPO_VISIBILITY }}
