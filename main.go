@@ -20,6 +20,9 @@ type Config struct {
 	GitLabToken     string
 	CodebergUser    string
 	CodebergToken   string
+	BitbucketUser   string
+	BitbucketAppPwd string
+	BitbucketWs     string
 	RepoVisibility  string
 	PerPage         int
 	BackupDir       string
@@ -49,6 +52,11 @@ func loadConfig(target string) Config {
 	case "codeberg":
 		cfg.CodebergUser = mustGetEnv("CODEBERG_USER")
 		cfg.CodebergToken = mustGetEnv("CODEBERG_TOKEN")
+	case "bitbucket":
+		cfg.BitbucketUser = mustGetEnv("BITBUCKET_USER")
+		cfg.BitbucketAppPwd = mustGetEnv("BITBUCKET_APP_PASSWORD")
+		// Default workspace to user if not provided
+		cfg.BitbucketWs = getEnv("BITBUCKET_WORKSPACE", cfg.BitbucketUser)
 	}
 	return cfg
 }
@@ -109,12 +117,13 @@ func runCmd(name string, args ...string) error {
 }
 
 func main() {
-	target := flag.String("target", "gitlab", "sync target: gitlab or codeberg")
+	target := flag.String("target", "gitlab", "sync target: gitlab | codeberg | bitbucket")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s -target {gitlab|codeberg}\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s -target {gitlab|codeberg|bitbucket}\n\n", os.Args[0])
 		fmt.Fprintln(os.Stderr, "Targets and required environment:")
 		fmt.Fprintln(os.Stderr, "  gitlab   -> requires GITLAB_USER, GITLAB_TOKEN; optional GITLAB_GROUP")
 		fmt.Fprintln(os.Stderr, "  codeberg -> requires CODEBERG_USER, CODEBERG_TOKEN")
+		fmt.Fprintln(os.Stderr, "  bitbucket-> requires BITBUCKET_USER, BITBUCKET_APP_PASSWORD; optional BITBUCKET_WORKSPACE (defaults to user)")
 		fmt.Fprintln(os.Stderr, "Always required:")
 		fmt.Fprintln(os.Stderr, "  GITHUB_USER, GITHUB_TOKEN")
 		fmt.Fprintln(os.Stderr, "Optional:")
@@ -123,7 +132,7 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.Parse()
-	if *target != "gitlab" && *target != "codeberg" {
+	if *target != "gitlab" && *target != "codeberg" && *target != "bitbucket" {
 		fmt.Fprintf(os.Stderr, "Invalid -target: %q\n\n", *target)
 		flag.Usage()
 		os.Exit(2)
@@ -197,6 +206,19 @@ func main() {
 			}
 			if err := syncToCodeberg(config.CodebergUser, config.CodebergToken, repoName, localPath); err != nil {
 				log.Printf("Failed to sync to Codeberg %s: %v", repoName, err)
+				continue
+			}
+		case "bitbucket":
+			if config.BitbucketUser == "" || config.BitbucketAppPwd == "" {
+				log.Fatalf("BITBUCKET_USER and BITBUCKET_APP_PASSWORD must be set when target=bitbucket")
+			}
+			private := repoVisibility == "private"
+			if err := checkAndValidateBitbucketRepo(config.BitbucketWs, repoName, private); err != nil {
+				log.Printf("Failed to validate Bitbucket repo %s: %v", repoName, err)
+				continue
+			}
+			if err := syncToBitbucket(config.BitbucketUser, config.BitbucketAppPwd, config.BitbucketWs, repoName, localPath); err != nil {
+				log.Printf("Failed to sync to Bitbucket %s: %v", repoName, err)
 				continue
 			}
 		default:

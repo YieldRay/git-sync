@@ -1,4 +1,7 @@
-// https://gitlab.com/-/user_settings/personal_access_tokens
+// GitLab
+// Personal Access Tokens: https://gitlab.com/-/user_settings/personal_access_tokens
+// Projects API: https://docs.gitlab.com/ee/api/projects.html
+// Groups API:   https://docs.gitlab.com/ee/api/groups.html
 package main
 
 import (
@@ -16,6 +19,7 @@ type GitLabProject struct {
 	Visibility string `json:"visibility"`
 }
 
+// doGitLabRequest issues a request against the GitLab v4 API (https://gitlab.com/api/v4).
 func doGitLabRequest(method, path string, queryParams map[string]string, body io.Reader) (*http.Response, error) {
 	u, err := url.Parse("https://gitlab.com")
 	if err != nil {
@@ -39,6 +43,7 @@ func doGitLabRequest(method, path string, queryParams map[string]string, body io
 	return glClient.Do(req)
 }
 
+// handleGitLabResponse decodes 2xx JSON responses; logs and errors otherwise.
 func handleGitLabResponse(resp *http.Response, target interface{}) (interface{}, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -53,7 +58,8 @@ func handleGitLabResponse(resp *http.Response, target interface{}) (interface{},
 	}
 }
 
-// https://docs.gitlab.com/api/projects/
+// Get single project
+// Docs: https://docs.gitlab.com/ee/api/projects.html#get-single-project
 func getGitLabProject(repoName, userName string, groupID *int) (*GitLabProject, error) {
 	var projPath string
 	if groupID != nil {
@@ -77,7 +83,8 @@ func getGitLabProject(repoName, userName string, groupID *int) (*GitLabProject, 
 	return result.(*GitLabProject), nil
 }
 
-// https://docs.gitlab.com/api/groups/
+// Details of a group
+// Docs: https://docs.gitlab.com/ee/api/groups.html#details-of-a-group
 func getGitLabGroupID() (*int, error) {
 	if config.GitLabGroup == "" {
 		return nil, nil
@@ -100,6 +107,8 @@ func getGitLabGroupID() (*int, error) {
 	return &result.(*struct{ ID int }).ID, nil
 }
 
+// Edit project (update visibility)
+// Docs: https://docs.gitlab.com/ee/api/projects.html#edit-project
 func updateGitLabProjectVisibility(projectID int, visibility string) error {
 	data := fmt.Sprintf("visibility=%s", visibility)
 	resp, err := doGitLabRequest("PUT", fmt.Sprintf("/api/v4/projects/%d", projectID), nil, strings.NewReader(data))
@@ -117,6 +126,8 @@ func updateGitLabProjectVisibility(projectID int, visibility string) error {
 	}
 }
 
+// Create project (optionally under a group via namespace_id)
+// Docs: https://docs.gitlab.com/ee/api/projects.html#create-project
 func createGitLabProject(groupID *int, repoName, visibility string) (*GitLabProject, error) {
 	data := fmt.Sprintf("name=%s&path=%s&visibility=%s&initialize_with_readme=false", repoName, repoName, visibility)
 	if groupID != nil {
