@@ -1,0 +1,44 @@
+on:
+  workflow_dispatch:
+    #  https://github.blog/changelog/2021-11-10-github-actions-input-types-for-manual-workflows/
+    inputs:
+      GITHUB_USER:
+        description: "GITHUB_USER"
+        required: true
+        type: string
+      GITHUB_TOKEN:
+        description: "GITHUB_TOKEN"
+        required: true
+        type: string
+      CODEBERG_USER:
+        description: "CODEBERG_USER"
+        required: true
+        type: string
+      CODEBERG_TOKEN:
+        description: "CODEBERG_TOKEN"
+        required: true
+        type: string
+      REPO_VISIBILITY:
+        description: "REPO_VISIBILITY (optional)"
+        required: false
+        default: "auto"
+        type: choice
+        options:
+          - auto
+          - public
+          - private
+
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+      - run: |
+          go run . -target codeberg
+        env:
+          GITHUB_USER: ${{ inputs.GITHUB_USER }}
+          GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+          CODEBERG_USER: ${{ inputs.CODEBERG_USER }}
+          CODEBERG_TOKEN: ${{ inputs.CODEBERG_TOKEN }}
+          REPO_VISIBILITY: ${{ inputs.REPO_VISIBILITY }}
