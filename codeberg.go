@@ -50,7 +50,7 @@ func doCodebergRequest(method, path string, queryParams map[string]string, body 
 	return glClient.Do(req)
 }
 
-func handleCodebergResponse(resp *http.Response, target interface{}) (interface{}, error) {
+func handleCodebergResponse(resp *http.Response, target any) (any, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
@@ -65,7 +65,7 @@ func handleCodebergResponse(resp *http.Response, target interface{}) (interface{
 }
 
 func createCodebergRepo(repoName string, private bool) (*CodebergRepo, error) {
-	bodyMap := map[string]interface{}{
+	bodyMap := map[string]any{
 		"auto_init": false,
 		"name":      repoName,
 		"private":   private,
@@ -91,7 +91,7 @@ func createCodebergRepo(repoName string, private bool) (*CodebergRepo, error) {
 }
 
 func updateCodebergRepoPrivate(owner, repoName string, private bool) (*CodebergRepo, error) {
-	bodyMap := map[string]interface{}{
+	bodyMap := map[string]any{
 		"private": private,
 	}
 	bodyBytes, err := json.Marshal(bodyMap)

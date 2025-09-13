@@ -56,7 +56,7 @@ func doBitbucketRequest(method, path string, queryParams map[string]string, body
 	return glClient.Do(req)
 }
 
-func handleBitbucketResponse(resp *http.Response, target interface{}) (interface{}, error) {
+func handleBitbucketResponse(resp *http.Response, target any) (any, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if target == nil {

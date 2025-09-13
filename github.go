@@ -41,7 +41,7 @@ func doGitHubRequest(method, path string, queryParams map[string]string, body io
 	return ghClient.Do(req)
 }
 
-func handleGitHubResponse(resp *http.Response, target interface{}) error {
+func handleGitHubResponse(resp *http.Response, target any) error {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if err := json.NewDecoder(resp.Body).Decode(target); err != nil {

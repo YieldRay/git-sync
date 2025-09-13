@@ -48,7 +48,7 @@ func doGitLabRequest(method, path string, queryParams map[string]string, body io
 }
 
 // handleGitLabResponse decodes 2xx JSON responses; logs and errors otherwise.
-func handleGitLabResponse(resp *http.Response, target interface{}) (interface{}, error) {
+func handleGitLabResponse(resp *http.Response, target any) (any, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		if err := json.NewDecoder(resp.Body).Decode(target); err != nil {
@@ -121,7 +121,7 @@ func getGitLabGroupID() (*int, error) {
 // Edit project (update visibility)
 // Docs: https://docs.gitlab.com/ee/api/projects.html#edit-project
 func updateGitLabProjectVisibility(projectID int, visibility string) error {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"visibility": visibility,
 	}
 	jsonData, err := json.Marshal(payload)
@@ -146,7 +146,7 @@ func updateGitLabProjectVisibility(projectID int, visibility string) error {
 // Create project (optionally under a group via namespace_id)
 // Docs: https://docs.gitlab.com/ee/api/projects.html#create-project
 func createGitLabProject(groupID *int, repoName, visibility string) (*GitLabProject, error) {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":                   repoName,
 		"path":                   repoName,
 		"visibility":             visibility,
