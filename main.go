@@ -6,10 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 type Config struct {
@@ -41,7 +42,7 @@ func loadConfig(target string) Config {
 		RepoVisibility:  getEnv("REPO_VISIBILITY", "auto"),
 		PerPage:         100,
 		BackupDir:       "./repos-backup",
-		LogsFolder:      "./log",
+		LogsFolder:      "./logs",
 		SleepBetweenAPI: 500 * time.Millisecond,
 	}
 	switch target {
@@ -93,33 +94,13 @@ func setupLogger() {
 	log.SetFlags(log.LstdFlags)
 }
 
-func mirrorReposFromGitHub(repoName, githubURL, localPath string) error {
-	authCloneURL := strings.Replace(githubURL, "https://", fmt.Sprintf("https://%s:%s@", config.GitHubUser, config.GitHubToken), 1)
-	if _, err := os.Stat(localPath); os.IsNotExist(err) {
-		log.Printf("Cloning (mirror) %s ...", repoName)
-		return runCmd("git", "clone", "--mirror", authCloneURL, localPath)
-	} else {
-		err := runCmd("git", "--git-dir", localPath, "fetch", "--all", "--prune")
-		if err != nil {
-			log.Printf("Recloning %s due to fetch failure", repoName)
-			os.RemoveAll(localPath)
-			return runCmd("git", "clone", "--mirror", authCloneURL, localPath)
-		}
-		return nil
-	}
-}
-
-func runCmd(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
 func main() {
-	target := flag.String("target", "gitlab", "sync target: gitlab | codeberg | bitbucket")
+	target := flag.String("target", "", "sync target: gitlab | codeberg | bitbucket")
+	repoFilter := flag.String("repo", "", "if set, only sync this specific GitHub repo (test mode)")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s -target {gitlab|codeberg|bitbucket}\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "\nUsage: %s -target {gitlab|codeberg|bitbucket}\n", os.Args[0])
+		flag.PrintDefaults()
+		fmt.Fprintln(os.Stderr)
 		fmt.Fprintln(os.Stderr, "Targets and required environment:")
 		fmt.Fprintln(os.Stderr, "  gitlab   -> requires GITLAB_USER, GITLAB_TOKEN; optional GITLAB_GROUP")
 		fmt.Fprintln(os.Stderr, "  codeberg -> requires CODEBERG_USER, CODEBERG_TOKEN")
@@ -128,8 +109,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  GITHUB_USER, GITHUB_TOKEN")
 		fmt.Fprintln(os.Stderr, "Optional:")
 		fmt.Fprintln(os.Stderr, "  REPO_VISIBILITY (auto|public|private), default=auto")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+
 	}
 	flag.Parse()
 	if *target != "gitlab" && *target != "codeberg" && *target != "bitbucket" {
@@ -139,14 +119,36 @@ func main() {
 	}
 
 	config = loadConfig(*target)
+	// before this line, the logger will print to stdout
 	setupLogger()
+	// after this line, all logs will go to the log file
 	initClients()
-	log.Printf("####################### logger Started ############################")
-	log.Printf("#################### Timestamp: %s ######################", time.Now().Format("2006-01-02 15:04:05"))
+	log.Printf("🔔 Logger started")
+	log.Printf("🕒 Timestamp: %s", time.Now().Format("2006-01-02 15:04:05"))
 
 	repos, err := getGitHubRepos()
 	if err != nil {
 		log.Fatal(err)
+	}
+	// Test mode: filter to a specific repo if flag provided
+	if *repoFilter != "" {
+		log.Printf("Test mode: filtering to repository %s", *repoFilter)
+		var filtered []GitHubRepo
+		for _, r := range repos {
+			if r.Name == *repoFilter {
+				filtered = append(filtered, r)
+				break
+			}
+		}
+		if len(filtered) == 0 {
+			log.Fatalf("Test mode: repository %s not found among GitHub repos", *repoFilter)
+		}
+		repos = filtered
+
+		// Print list of repos to sync using Map from utils.go
+		log.Printf("📦 Will sync the following repositories: %s", strings.Join(
+			Map(repos, func(r GitHubRepo) string { return r.Name }), ", "))
+
 	}
 	var gitlabGroupID *int
 	if *target == "gitlab" {
@@ -156,7 +158,7 @@ func main() {
 		}
 	}
 	if len(repos) == 0 {
-		log.Printf("No repos found; exiting.")
+		log.Printf("🚫 No repos found; exiting.")
 		return
 	}
 
@@ -177,52 +179,52 @@ func main() {
 		}
 		localPath := filepath.Join(config.BackupDir, fmt.Sprintf("%s.git", repoName))
 
-		log.Printf("Syncing %s", repoName)
+		log.Printf("🌐 Syncing %s", repoName)
 		err := mirrorReposFromGitHub(repoName, githubURL, localPath)
 		if err != nil {
-			log.Printf("Failed to mirror %s: %v", repoName, err)
+			log.Printf("🚫 Failed to mirror %s: %v", repoName, err)
 			continue
 		}
 		switch *target {
 		case "gitlab":
 			err = checkAndValidateGitLabRepos(gitlabGroupID, repoName, config.GitLabUser, repoVisibility)
 			if err != nil {
-				log.Printf("Failed to validate GitLab repo %s: %v", repoName, err)
+				log.Printf("🚫 Failed to validate GitLab repo %s: %v", repoName, err)
 				continue
 			}
 			err = syncRepos(gitlabGroupID, config.GitLabUser, config.GitLabToken, repoName, localPath)
 			if err != nil {
-				log.Printf("Failed to sync %s: %v", repoName, err)
+				log.Printf("🚫 Failed to sync %s: %v", repoName, err)
 				continue
 			}
 		case "codeberg":
 			if config.CodebergUser == "" || config.CodebergToken == "" {
-				log.Fatalf("CODEBERG_USER and CODEBERG_TOKEN must be set when target=codeberg")
+				log.Fatalf("🚫 CODEBERG_USER and CODEBERG_TOKEN must be set when target=codeberg")
 			}
 			private := repoVisibility == "private"
 			if err := checkAndValidateCodebergRepo(config.CodebergUser, repoName, private); err != nil {
-				log.Printf("Failed to validate Codeberg repo %s: %v", repoName, err)
+				log.Printf("🚫 Failed to validate Codeberg repo %s: %v", repoName, err)
 				continue
 			}
 			if err := syncToCodeberg(config.CodebergUser, config.CodebergToken, repoName, localPath); err != nil {
-				log.Printf("Failed to sync to Codeberg %s: %v", repoName, err)
+				log.Printf("🚫 Failed to sync to Codeberg %s: %v", repoName, err)
 				continue
 			}
 		case "bitbucket":
 			if config.BitbucketUser == "" || config.BitbucketAppPwd == "" {
-				log.Fatalf("BITBUCKET_USER and BITBUCKET_APP_PASSWORD must be set when target=bitbucket")
+				log.Fatalf("🚫 BITBUCKET_USER and BITBUCKET_APP_PASSWORD must be set when target=bitbucket")
 			}
 			private := repoVisibility == "private"
 			if err := checkAndValidateBitbucketRepo(config.BitbucketWs, repoName, private); err != nil {
-				log.Printf("Failed to validate Bitbucket repo %s: %v", repoName, err)
+				log.Printf("🚫 Failed to validate Bitbucket repo %s: %v", repoName, err)
 				continue
 			}
 			if err := syncToBitbucket(config.BitbucketUser, config.BitbucketAppPwd, config.BitbucketWs, repoName, localPath); err != nil {
-				log.Printf("Failed to sync to Bitbucket %s: %v", repoName, err)
+				log.Printf("🚫 Failed to sync to Bitbucket %s: %v", repoName, err)
 				continue
 			}
 		default:
-			log.Fatalf("Unknown target: %s (expected gitlab or codeberg)", *target)
+			log.Fatalf("🚫 Unknown target: %s (expected gitlab or codeberg)", *target)
 		}
 		log.Printf("✅ Synced %s", repoName)
 		reposDone++

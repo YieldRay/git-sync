@@ -48,3 +48,4 @@ logs/
 dist/
 build/
 repos-backup/
+git-sync*

@@ -8,7 +8,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -78,5 +80,26 @@ func getGitHubRepos() ([]GitHubRepo, error) {
 		time.Sleep(config.SleepBetweenAPI)
 	}
 	log.Printf("Found %d GitHub repos", len(repos))
+	// List each repo with its private flag
+	for _, r := range repos {
+		log.Printf("- %s (private: %v)", r.Name, r.Private)
+	}
+
 	return repos, nil
+}
+
+func mirrorReposFromGitHub(repoName, githubURL, localPath string) error {
+	authCloneURL := strings.Replace(githubURL, "https://", fmt.Sprintf("https://%s:%s@", config.GitHubUser, config.GitHubToken), 1)
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		log.Printf("Cloning (mirror) %s ...", repoName)
+		return runCmd("git", "clone", "--mirror", authCloneURL, localPath)
+	} else {
+		err := runCmd("git", "--git-dir", localPath, "fetch", "--all", "--prune")
+		if err != nil {
+			log.Printf("Recloning %s due to fetch failure", repoName)
+			os.RemoveAll(localPath)
+			return runCmd("git", "clone", "--mirror", authCloneURL, localPath)
+		}
+		return nil
+	}
 }
