@@ -21,24 +21,28 @@ type GitLabProject struct {
 
 // doGitLabRequest issues a request against the GitLab v4 API (https://gitlab.com/api/v4).
 func doGitLabRequest(method, path string, queryParams map[string]string, body io.Reader) (*http.Response, error) {
-	u, err := url.Parse("https://gitlab.com")
-	if err != nil {
-		return nil, err
+	// Build URL manually to handle pre-encoded paths properly
+	baseURL := "https://gitlab.com" + path
+	if len(queryParams) > 0 {
+		u, err := url.Parse(baseURL)
+		if err != nil {
+			return nil, err
+		}
+		q := u.Query()
+		for k, v := range queryParams {
+			q.Set(k, v)
+		}
+		u.RawQuery = q.Encode()
+		baseURL = u.String()
 	}
-	u.Path = path
-	q := u.Query()
-	for k, v := range queryParams {
-		q.Set(k, v)
-	}
-	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest(method, u.String(), body)
+	req, err := http.NewRequest(method, baseURL, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("PRIVATE-TOKEN", config.GitLabToken)
 	if body != nil {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Type", "application/json")
 	}
 	return glClient.Do(req)
 }
@@ -63,12 +67,16 @@ func handleGitLabResponse(resp *http.Response, target interface{}) (interface{},
 func getGitLabProject(repoName, userName string, groupID *int) (*GitLabProject, error) {
 	var projPath string
 	if groupID != nil {
-		projPath = fmt.Sprintf("%d/%s", *groupID, repoName)
+		if config.GitLabGroup != "" {
+			projPath = fmt.Sprintf("%s/%s", config.GitLabGroup, repoName)
+		} else {
+			projPath = fmt.Sprintf("%s/%s", userName, repoName)
+		}
 	} else {
 		projPath = fmt.Sprintf("%s/%s", userName, repoName)
 	}
-	encoded := url.QueryEscape(projPath)
-	resp, err := doGitLabRequest("GET", fmt.Sprintf("/api/v4/projects/%s", encoded), nil, nil)
+	// URL-encode the project path for the API endpoint - use PathEscape for URL paths
+	resp, err := doGitLabRequest("GET", "/api/v4/projects/"+url.PathEscape(projPath), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +100,7 @@ func getGitLabGroupID() (*int, error) {
 	if config.GitLabGroup == "" {
 		return nil, nil
 	}
-	encoded := url.QueryEscape(config.GitLabGroup)
+	encoded := url.PathEscape(config.GitLabGroup)
 	resp, err := doGitLabRequest("GET", fmt.Sprintf("/api/v4/groups/%s", encoded), nil, nil)
 	if err != nil {
 		return nil, err
@@ -113,8 +121,14 @@ func getGitLabGroupID() (*int, error) {
 // Edit project (update visibility)
 // Docs: https://docs.gitlab.com/ee/api/projects.html#edit-project
 func updateGitLabProjectVisibility(projectID int, visibility string) error {
-	data := fmt.Sprintf("visibility=%s", visibility)
-	resp, err := doGitLabRequest("PUT", fmt.Sprintf("/api/v4/projects/%d", projectID), nil, strings.NewReader(data))
+	payload := map[string]interface{}{
+		"visibility": visibility,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	resp, err := doGitLabRequest("PUT", fmt.Sprintf("/api/v4/projects/%d", projectID), nil, strings.NewReader(string(jsonData)))
 	if err != nil {
 		return err
 	}
@@ -132,11 +146,20 @@ func updateGitLabProjectVisibility(projectID int, visibility string) error {
 // Create project (optionally under a group via namespace_id)
 // Docs: https://docs.gitlab.com/ee/api/projects.html#create-project
 func createGitLabProject(groupID *int, repoName, visibility string) (*GitLabProject, error) {
-	data := fmt.Sprintf("name=%s&path=%s&visibility=%s&initialize_with_readme=false", repoName, repoName, visibility)
-	if groupID != nil {
-		data += fmt.Sprintf("&namespace_id=%d", *groupID)
+	payload := map[string]interface{}{
+		"name":                   repoName,
+		"path":                   repoName,
+		"visibility":             visibility,
+		"initialize_with_readme": false,
 	}
-	resp, err := doGitLabRequest("POST", "/api/v4/projects", nil, strings.NewReader(data))
+	if groupID != nil {
+		payload["namespace_id"] = *groupID
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := doGitLabRequest("POST", "/api/v4/projects", nil, strings.NewReader(string(jsonData)))
 	if err != nil {
 		return nil, err
 	}
