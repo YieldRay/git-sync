@@ -47,7 +47,7 @@ func doCodebergRequest(method, path string, queryParams map[string]string, body 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return glClient.Do(req)
+	return cbClient.Do(req)
 }
 
 func handleCodebergResponse(resp *http.Response, target any) (any, error) {

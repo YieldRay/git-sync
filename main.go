@@ -32,8 +32,10 @@ type Config struct {
 }
 
 var config Config
-var ghClient *http.Client
-var glClient *http.Client
+var ghClient = &http.Client{Transport: transport}
+var glClient = &http.Client{Transport: transport}
+var bbClient = &http.Client{Transport: transport}
+var cbClient = &http.Client{Transport: transport}
 
 func loadConfig(target string) Config {
 	cfg := Config{
@@ -77,12 +79,6 @@ func mustGetEnv(key string) string {
 	return ""
 }
 
-// initClients sets up HTTP clients with custom transport for request/response logging
-func initClients() {
-	ghClient = &http.Client{Transport: transport}
-	glClient = &http.Client{Transport: transport}
-}
-
 func setupLogger() {
 	os.MkdirAll(config.LogsFolder, 0755)
 	timestamp := time.Now().Format("20060102_150405")
@@ -123,7 +119,6 @@ func main() {
 	// before this line, the logger will print to stdout
 	setupLogger()
 	// after this line, all logs will go to the log file
-	initClients()
 	log.Printf("🔔 Logger started")
 	log.Printf("🕒 Timestamp: %s", time.Now().Format("2006-01-02 15:04:05"))
 
@@ -232,5 +227,4 @@ func main() {
 		log.Printf("Repos done: %d/%d", reposDone, len(repos))
 	}
 	log.Printf("✅ All Done :), all repositories has been synced, please check the logs for details.")
-	log.Printf("✅ All Done :), Now you can enjoy hehe, please check the logs for details.")
 }

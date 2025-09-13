@@ -53,7 +53,7 @@ func doBitbucketRequest(method, path string, queryParams map[string]string, body
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return glClient.Do(req)
+	return bbClient.Do(req)
 }
 
 func handleBitbucketResponse(resp *http.Response, target any) (any, error) {
