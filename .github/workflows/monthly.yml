@@ -22,8 +22,8 @@ jobs:
           GITLAB_GROUP: ${{ secrets.GITLAB_GROUP }}
           CODEBERG_USER: ${{ secrets.CODEBERG_USER }}
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
-          BITBUCKET_USER: ${{ secrets.BITBUCKET_USER }}
-          BITBUCKET_APP_PASSWORD: ${{ secrets.BITBUCKET_APP_PASSWORD }}
+          BITBUCKET_EMAIL: ${{ secrets.BITBUCKET_EMAIL }}
+          BITBUCKET_TOKEN: ${{ secrets.BITBUCKET_TOKEN }}
           BITBUCKET_WORKSPACE: ${{ secrets.BITBUCKET_WORKSPACE }}
           # Optional visibility override: auto|public|private
           REPO_VISIBILITY: ${{ secrets.REPO_VISIBILITY }}

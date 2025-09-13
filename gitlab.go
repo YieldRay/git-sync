@@ -80,7 +80,7 @@ func getGitLabProject(repoName, userName string, groupID *int) (*GitLabProject, 
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode == 404 {
+	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil // Not found
 	}
 	var proj GitLabProject

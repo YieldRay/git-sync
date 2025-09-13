@@ -32,24 +32,30 @@ type BitbucketRepo struct {
 
 // doBitbucketRequest builds a request against the Bitbucket v2 API (https://api.bitbucket.org/2.0)
 // and authenticates using Basic Auth with a username + App Password.
-// App Passwords: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+// API tokens: https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/
 func doBitbucketRequest(method, path string, queryParams map[string]string, body io.Reader) (*http.Response, error) {
-	u, err := url.Parse("https://api.bitbucket.org/2.0")
-	if err != nil {
-		return nil, err
+	// Build URL manually to handle pre-encoded paths properly
+	baseURL := "https://api.bitbucket.org/2.0" + path
+	if len(queryParams) > 0 {
+		u, err := url.Parse(baseURL)
+		if err != nil {
+			return nil, err
+		}
+		q := u.Query()
+		for k, v := range queryParams {
+			q.Set(k, v)
+		}
+		u.RawQuery = q.Encode()
+		baseURL = u.String()
 	}
-	u.Path = path
-	q := u.Query()
-	for k, v := range queryParams {
-		q.Set(k, v)
-	}
-	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest(method, u.String(), body)
+	req, err := http.NewRequest(method, baseURL, body)
 	if err != nil {
 		return nil, err
 	}
-	req.SetBasicAuth(config.BitbucketUser, config.BitbucketAppPwd)
+	// https://developer.atlassian.com/cloud/bitbucket/rest/intro/#authentication
+	// Use email + API token for authentication (not username + app password)
+	req.SetBasicAuth(config.BitbucketEmail, config.BitbucketToken)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -156,11 +162,11 @@ func checkAndValidateBitbucketRepo(workspace, repoSlug string, private bool) err
 	return nil
 }
 
-// Push a mirrored repository to Bitbucket over HTTPS with App Password.
-// Git over HTTPS with App Passwords: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
-func syncToBitbucket(user, appPwd, workspace, repoSlug, localPath string) error {
+// Push a mirrored repository to Bitbucket over HTTPS with API Token.
+// https://support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/
+func syncToBitbucket(email, token, workspace, repoSlug, localPath string) error {
 	bbURL := fmt.Sprintf("https://bitbucket.org/%s/%s.git", workspace, repoSlug)
-	pushURL := strings.Replace(bbURL, "https://", fmt.Sprintf("https://%s:%s@", user, appPwd), 1)
+	pushURL := strings.Replace(bbURL, "https://", fmt.Sprintf("https://x-bitbucket-api-token-auth:%s@", token), 1)
 	log.Printf("Pushing %s -> Bitbucket (%s) ...", repoSlug, workspace)
 	return runCmd("git", "--git-dir", localPath, "push", "--mirror", pushURL)
 }

@@ -28,18 +28,22 @@ type CodebergRepo struct {
 }
 
 func doCodebergRequest(method, path string, queryParams map[string]string, body io.Reader) (*http.Response, error) {
-	u, err := url.Parse("https://codeberg.org")
-	if err != nil {
-		return nil, err
+	// Build URL manually to handle pre-encoded paths properly
+	baseURL := "https://codeberg.org" + path
+	if len(queryParams) > 0 {
+		u, err := url.Parse(baseURL)
+		if err != nil {
+			return nil, err
+		}
+		q := u.Query()
+		for k, v := range queryParams {
+			q.Set(k, v)
+		}
+		u.RawQuery = q.Encode()
+		baseURL = u.String()
 	}
-	u.Path = path
-	q := u.Query()
-	for k, v := range queryParams {
-		q.Set(k, v)
-	}
-	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest(method, u.String(), body)
+	req, err := http.NewRequest(method, baseURL, body)
 	if err != nil {
 		return nil, err
 	}

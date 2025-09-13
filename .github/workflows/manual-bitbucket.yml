@@ -10,17 +10,17 @@ on:
         description: "GITHUB_TOKEN"
         required: true
         type: string
-      BITBUCKET_USER:
-        description: "BITBUCKET_USER"
+      BITBUCKET_EMAIL:
+        description: "BITBUCKET_EMAIL"
         required: true
         type: string
-      BITBUCKET_APP_PASSWORD:
-        description: "BITBUCKET_APP_PASSWORD"
+      BITBUCKET_TOKEN:
+        description: "BITBUCKET_TOKEN (API Token)"
         required: true
         type: string
       BITBUCKET_WORKSPACE:
-        description: "BITBUCKET_WORKSPACE (optional, defaults to user)"
-        required: false
+        description: "BITBUCKET_WORKSPACE (required)"
+        required: true
         type: string
       REPO_VISIBILITY:
         description: "REPO_VISIBILITY (optional)"
@@ -43,7 +43,7 @@ jobs:
         env:
           GITHUB_USER: ${{ inputs.GITHUB_USER }}
           GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
-          BITBUCKET_USER: ${{ inputs.BITBUCKET_USER }}
-          BITBUCKET_APP_PASSWORD: ${{ inputs.BITBUCKET_APP_PASSWORD }}
+          BITBUCKET_EMAIL: ${{ inputs.BITBUCKET_EMAIL }}
+          BITBUCKET_TOKEN: ${{ inputs.BITBUCKET_TOKEN }}
           BITBUCKET_WORKSPACE: ${{ inputs.BITBUCKET_WORKSPACE }}
           REPO_VISIBILITY: ${{ inputs.REPO_VISIBILITY }}

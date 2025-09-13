@@ -21,8 +21,8 @@ type Config struct {
 	GitLabToken     string
 	CodebergUser    string
 	CodebergToken   string
-	BitbucketUser   string
-	BitbucketAppPwd string
+	BitbucketEmail  string
+	BitbucketToken  string
 	BitbucketWs     string
 	RepoVisibility  string
 	PerPage         int
@@ -56,10 +56,10 @@ func loadConfig(target string) Config {
 		cfg.CodebergUser = mustGetEnv("CODEBERG_USER")
 		cfg.CodebergToken = mustGetEnv("CODEBERG_TOKEN")
 	case "bitbucket":
-		cfg.BitbucketUser = mustGetEnv("BITBUCKET_USER")
-		cfg.BitbucketAppPwd = mustGetEnv("BITBUCKET_APP_PASSWORD")
-		// Default workspace to user if not provided
-		cfg.BitbucketWs = getEnv("BITBUCKET_WORKSPACE", cfg.BitbucketUser)
+		cfg.BitbucketEmail = mustGetEnv("BITBUCKET_EMAIL")
+		cfg.BitbucketToken = mustGetEnv("BITBUCKET_TOKEN")
+		// Workspace is required for Bitbucket API
+		cfg.BitbucketWs = mustGetEnv("BITBUCKET_WORKSPACE")
 	}
 	return cfg
 }
@@ -101,7 +101,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "Targets and required environment:")
 		fmt.Fprintln(os.Stderr, "  gitlab   -> requires GITLAB_USER, GITLAB_TOKEN; optional GITLAB_GROUP")
 		fmt.Fprintln(os.Stderr, "  codeberg -> requires CODEBERG_USER, CODEBERG_TOKEN")
-		fmt.Fprintln(os.Stderr, "  bitbucket-> requires BITBUCKET_USER, BITBUCKET_APP_PASSWORD; optional BITBUCKET_WORKSPACE (defaults to user)")
+		fmt.Fprintln(os.Stderr, "  bitbucket-> requires BITBUCKET_EMAIL, BITBUCKET_TOKEN, BITBUCKET_WORKSPACE")
 		fmt.Fprintln(os.Stderr, "Always required:")
 		fmt.Fprintln(os.Stderr, "  GITHUB_USER, GITHUB_TOKEN")
 		fmt.Fprintln(os.Stderr, "Optional:")
@@ -207,15 +207,15 @@ func main() {
 				continue
 			}
 		case "bitbucket":
-			if config.BitbucketUser == "" || config.BitbucketAppPwd == "" {
-				log.Fatalf("🚫 BITBUCKET_USER and BITBUCKET_APP_PASSWORD must be set when target=bitbucket")
+			if config.BitbucketEmail == "" || config.BitbucketToken == "" || config.BitbucketWs == "" {
+				log.Fatalf("🚫 BITBUCKET_EMAIL, BITBUCKET_TOKEN, and BITBUCKET_WORKSPACE must be set when target=bitbucket")
 			}
 			private := repoVisibility == "private"
 			if err := checkAndValidateBitbucketRepo(config.BitbucketWs, repoName, private); err != nil {
 				log.Printf("🚫 Failed to validate Bitbucket repo %s: %v", repoName, err)
 				continue
 			}
-			if err := syncToBitbucket(config.BitbucketUser, config.BitbucketAppPwd, config.BitbucketWs, repoName, localPath); err != nil {
+			if err := syncToBitbucket(config.BitbucketEmail, config.BitbucketToken, config.BitbucketWs, repoName, localPath); err != nil {
 				log.Printf("🚫 Failed to sync to Bitbucket %s: %v", repoName, err)
 				continue
 			}
