@@ -77,9 +77,10 @@ func mustGetEnv(key string) string {
 	return ""
 }
 
+// initClients sets up HTTP clients with custom transport for request/response logging
 func initClients() {
-	ghClient = &http.Client{}
-	glClient = &http.Client{}
+	ghClient = &http.Client{Transport: transport}
+	glClient = &http.Client{Transport: transport}
 }
 
 func setupLogger() {
