@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "ci.yml"
+  cancel-in-progress: true
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete v0.0.0 --yes || true
+          git push --delete origin v0.0.0 || true
+
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt update
+          sudo apt install goreleaser
+          goreleaser release --snapshot
+
+          git tag v0.0.0
+          git push origin v0.0.0
+
+          gh release create v0.0.0 \
+            --title "v0.0.0" \
+            --notes "Automated release" \
+            dist/*.tar.gz dist/*.zip
