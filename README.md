@@ -38,3 +38,4 @@
 1. Generate new token
 2. Select permissions
    - repository: Read and write
+   - user: Read and write

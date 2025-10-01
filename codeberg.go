@@ -16,15 +16,21 @@ import (
 // https://codeberg.org/api/swagger
 // https://scalar.val.run/codeberg.org/swagger.v1.json
 
+type CodebergRepoOwner struct {
+	Login    string `json:"login"`
+	Username string `json:"username"`
+}
+
 type CodebergRepo struct {
-	Owner       string `json:"owner"`
-	Name        string `json:"name"`
-	OriginalURL string `json:"original_url"`
-	HTMLURL     string `json:"html_url"`
-	CloneURL    string `json:"clone_url"`
-	SSHURL      string `json:"ssh_url"`
-	URL         string `json:"url"`
-	Private     bool   `json:"private"`
+	ID          int               `json:"id"`
+	Owner       CodebergRepoOwner `json:"owner"`
+	Name        string            `json:"name"`
+	OriginalURL string            `json:"original_url"`
+	HTMLURL     string            `json:"html_url"`
+	CloneURL    string            `json:"clone_url"`
+	SSHURL      string            `json:"ssh_url"`
+	URL         string            `json:"url"`
+	Private     bool              `json:"private"`
 }
 
 func doCodebergRequest(method, path string, queryParams map[string]string, body io.Reader) (*http.Response, error) {
