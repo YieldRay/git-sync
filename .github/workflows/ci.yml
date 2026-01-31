@@ -2,6 +2,9 @@ name: CI
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -25,13 +28,15 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete v0.0.0 --yes || true
-          git push --delete origin v0.0.0 || true
 
           echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
           sudo apt update
           sudo apt install goreleaser
           goreleaser release --snapshot
+
+          git push --delete origin v0.0.0 || true
+          git tag -d v0.0.0 || true
+          gh release delete v0.0.0 --yes || true
 
           git tag v0.0.0
           git push origin v0.0.0
