@@ -34,6 +34,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
+      - name: Mask sensitive inputs
+        run: |
+          GH_TOKEN=$(jq -r '.inputs.GITHUB_TOKEN // empty' "$GITHUB_EVENT_PATH")
+          if [ -n "$GH_TOKEN" ]; then
+            echo "::add-mask::$GH_TOKEN"
+          fi
+          CB_TOKEN=$(jq -r '.inputs.CODEBERG_TOKEN // empty' "$GITHUB_EVENT_PATH")
+          if [ -n "$CB_TOKEN" ]; then
+            echo "::add-mask::$CB_TOKEN"
+          fi
       - run: |
           go run . -target codeberg
         env:
