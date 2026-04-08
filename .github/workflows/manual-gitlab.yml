@@ -38,6 +38,16 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
+      - name: Mask sensitive inputs
+        run: |
+          GH_TOKEN=$(jq -r '.inputs.GITHUB_TOKEN // empty' "$GITHUB_EVENT_PATH")
+          if [ -n "$GH_TOKEN" ]; then
+            echo "::add-mask::$GH_TOKEN"
+          fi
+          GL_TOKEN=$(jq -r '.inputs.GITLAB_TOKEN // empty' "$GITHUB_EVENT_PATH")
+          if [ -n "$GL_TOKEN" ]; then
+            echo "::add-mask::$GL_TOKEN"
+          fi
       - run: |
           go run . -target gitlab
         env:
